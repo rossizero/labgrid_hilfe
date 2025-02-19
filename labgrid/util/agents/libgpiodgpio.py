@@ -6,6 +6,8 @@ Takes an integer property 'index' which refers to the GPIO line.
 
 import logging
 import gpiod
+from gpiod.line import Direction, Value
+
 
 class GpioDigitalOutput:
     _chip_name = '/dev/gpiochip0'
@@ -13,23 +15,27 @@ class GpioDigitalOutput:
     def __init__(self, index):
         self._logger = logging.getLogger(f"Device: GPIO{index}")
         self.index = index
-        self._chip = gpiod.Chip(self._chip_name)
 
-        # Request the GPIO line as output
-        self._line = self._chip.get_line(index)
-        self._line.request(consumer="GpioDigitalOutput", type=gpiod.LINE_REQ_DIR_OUT)
+        self._request = gpiod.request_lines(
+            "/dev/gpiochip0",
+            consumer="blink-example",
+            config={
+                self.index: gpiod.LineSettings(
+                    direction=Direction.OUTPUT, output_value=Value.ACTIVE
+                )
+            },
+        )
 
     def __del__(self):
-        self._line.release()
+        self._request.release()
         self._chip.close()
 
     def get(self):
-        return self._line.get_value() == 1
+        return self._request.get_value(self.index) == Value.ACTIVE
 
     def set(self, status):
         self._logger.debug(f"Setting GPIO{self.index} to `{status}`")
-        value = 1 if status else 0
-        self._line.set_value(value)
+        self._request.set_value(self.index, Value.ACTIVE if status else Value.INACTIVE)
 
 _gpios = {}
 
