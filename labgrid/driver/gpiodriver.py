@@ -3,7 +3,7 @@ import attr
 
 from ..factory import target_factory
 from ..protocol import DigitalOutputProtocol
-from ..resource.remote import NetworkSysfsGPIO
+from ..resource.remote import NetworkSysfsGPIO, NetworkLibGpiodGPIO
 from ..step import step
 from .common import Driver
 from ..util.agentwrapper import AgentWrapper
@@ -14,7 +14,7 @@ from ..util.agentwrapper import AgentWrapper
 class GpioDigitalOutputDriver(Driver, DigitalOutputProtocol):
 
     bindings = {
-        "gpio": {"SysfsGPIO", "NetworkSysfsGPIO"},
+        "gpio": {"SysfsGPIO", "NetworkSysfsGPIO", "LibGpiodGPIO", "NetworkLibGpiodGPIO"},
     }
 
     def __attrs_post_init__(self):
@@ -22,12 +22,16 @@ class GpioDigitalOutputDriver(Driver, DigitalOutputProtocol):
         self.wrapper = None
 
     def on_activate(self):
-        if isinstance(self.gpio, NetworkSysfsGPIO):
+        if isinstance(self.gpio, NetworkSysfsGPIO) or isinstance(self.gpio, NetworkLibGpiodGPIO):
             host = self.gpio.host
         else:
             host = None
         self.wrapper = AgentWrapper(host)
-        self.proxy = self.wrapper.load('sysfsgpio')
+
+        if isinstance(self.gpio, NetworkSysfsGPIO) or isinstance(self.gpio, SysfsGPIO):
+            self.proxy = self.wrapper.load('sysfsgpio')
+        else:
+            self.proxy = self.wrapper.load('libgpiodgpio')
 
     def on_deactivate(self):
         self.wrapper.close()

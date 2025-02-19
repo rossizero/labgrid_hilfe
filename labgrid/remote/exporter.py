@@ -677,6 +677,28 @@ exports["SysfsGPIO"] = GPIOSysFSExport
 exports["MatchedSysfsGPIO"] = GPIOSysFSExport
 
 
+@attr.s(eq=False)
+class LibGpiodGPIOExport(ResourceExport):
+    """ResourceExport for GPIO lines accessed directly from userspace"""
+
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
+        
+        if self.cls == "LibGpiodGPIO":
+            from ..resource.base import LibGpiodGPIO
+
+            self.local = LibGpiodGPIO(target=None, name=None, **self.local_params)
+        
+        self.data["cls"] = "NetworkLibGpiodGPIO"
+
+    def _get_params(self):
+        return self.local_params
+
+
+
+exports["LibGpiodGPIO"] = LibGpiodGPIOExport
+
+
 @attr.s
 class NetworkServiceExport(ResourceExport):
     """ResourceExport for a NetworkService
