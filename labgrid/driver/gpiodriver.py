@@ -4,6 +4,7 @@ import attr
 from ..factory import target_factory
 from ..protocol import DigitalOutputProtocol
 from ..resource.remote import NetworkSysfsGPIO, NetworkLibGpiodGPIO
+from ..resource.base import SysfsGPIO
 from ..step import step
 from .common import Driver
 from ..util.agentwrapper import AgentWrapper
