@@ -28,7 +28,6 @@ class GpioDigitalOutput:
 
     def __del__(self):
         self._request.release()
-        self._chip.close()
 
     def get(self):
         return self._request.get_value(self.index) == Value.ACTIVE
