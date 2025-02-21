@@ -6,4 +6,4 @@ targets:
     drivers:
       GpioDigitalOutputDriver: {}
 options:
-  coordinator_address: 'labgrid:20408'
+  coordinator_address: '20.52.229.118:20408'
