@@ -692,7 +692,11 @@ class LibGpiodGPIOExport(ResourceExport):
         self.data["cls"] = "NetworkLibGpiodGPIO"
 
     def _get_params(self):
-        return self.local_params
+        """Helper function to return parameters"""
+        return {
+            "host": self.host,
+            "index": self.local.index,
+        }
 
 
 
