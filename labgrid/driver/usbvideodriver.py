@@ -1,6 +1,9 @@
 import subprocess
+import cv2
 
 import attr
+import os
+import numpy as np
 
 from ..exceptions import InvalidConfigError
 from ..factory import target_factory
@@ -75,6 +78,12 @@ class USBVideoDriver(Driver, VideoProtocol):
                 ("mid", "image/jpeg,width=864,height=480,pixel-aspect-ratio=1/1,framerate=30/1"),
                 ("high", "image/jpeg,width=1280,height=1024,pixel-aspect-ratio=1/1,framerate=30/1"),
                 ])
+        elif match ==(0x046d, 0x0826): # Logitech C525 oder so
+            return ("mid", [
+                ("low", "image/jpeg,width=640,height=480,framerate=30/1"),
+                ("mid", "image/jpeg,width=1280,height=720,framerate=30/1"),
+                ("high", "image/jpeg,width=1920,height=1080,framerate=30/1"),
+                ])
         self.logger.warning(
             "Unkown USB video device {:04x}:{:04x}, using fallback pipeline."
             .format(*match))
@@ -129,16 +138,19 @@ class USBVideoDriver(Driver, VideoProtocol):
         pipeline += f"! {caps} "
         if inner:
             pipeline += f"! {inner} "
+
         pipeline += "! matroskamux streamable=true ! fdsink"
+        #pipeline += "! fdsink"
+        
         return pipeline
 
     @Driver.check_active
     def stream(self, caps_hint=None, controls=None):
         caps = self.select_caps(caps_hint)
         pipeline = self.get_pipeline(self.video.path, caps, controls)
-
         tx_cmd = self.video.command_prefix + ["gst-launch-1.0", "-q"]
         tx_cmd += pipeline.split()
+
         rx_cmd = ["gst-launch-1.0", "playbin3", "buffer-duration=0", "uri=fd://0"]
 
         tx = subprocess.Popen(
@@ -170,3 +182,55 @@ class USBVideoDriver(Driver, VideoProtocol):
 
         rx.communicate()
         tx.communicate()
+    
+    @Driver.check_active
+    def get_opencv_cap(self, caps_hint=None, controls=None):
+        caps = self.select_caps(caps_hint)
+        pipeline = self.get_pipeline(self.video.path, caps, controls)
+        tx_cmd = self.video.command_prefix + ["gst-launch-1.0", "-q"]
+        tx_cmd += pipeline.split()
+
+        decode_cmd = [
+            "gst-launch-1.0",
+            "fdsrc", "fd=0",
+            "!", "matroskademux",
+            "!", "jpegdec",
+            "!", "videoconvert",
+            "!", "video/x-raw,format=BGR",
+            "!", "fdsink", "fd=1"
+        ]
+        
+        proc = subprocess.Popen(
+            tx_cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            bufsize=10**6
+        )
+
+        decode = subprocess.Popen(
+            decode_cmd,
+            stdin=proc.stdout,
+            stdout=subprocess.PIPE,
+            bufsize=10**6
+        )
+
+        width=1280
+        height=720
+        size = width * height * 3
+
+        while True:
+            chunk = decode.stdout.read(size)
+            if not chunk:
+                break
+            arr = np.frombuffer(chunk, dtype=np.uint8).reshape((height, width, 3))
+
+            cv2.imshow("remote stream", arr)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+        cv2.destroyAllWindows()
+
+        proc.terminate()
+        decode.terminate()
+
+        proc.communicate()
+        decode.communicate()
