@@ -6,6 +6,7 @@ Takes an integer property 'index' which refers to the GPIO line.
 
 import logging
 import gpiod
+import time
 from gpiod.line import Direction, Value
 
 
@@ -51,7 +52,17 @@ def handle_get(index):
     gpio_line = _get_gpio_line(index)
     return gpio_line.get()
 
+def handle_record(index, duration: float, sampling_rate: int):
+    num_samples = sampling_rate * duration
+    samples = []
+
+    for i in range(num_samples):
+        samples.append(handle_get(index))
+        time.sleep(1 / sampling_rate)
+    return samples
+    
 methods = {
     'set': handle_set,
     'get': handle_get,
+    'record': handle_record,
 }

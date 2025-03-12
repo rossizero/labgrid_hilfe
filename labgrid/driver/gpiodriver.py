@@ -48,3 +48,9 @@ class GpioDigitalOutputDriver(Driver, DigitalOutputProtocol):
     @step(result=True)
     def get(self):
         return self.proxy.get(self.gpio.index)
+
+    @Driver.check_active
+    @step(result=True)
+    def record(self, duration: float, sampling_rate: int):
+        # only available for (Network)LibGpiodGPIO resources
+        return self.proxy.record(self.gpio.index, duration, sampling_rate)
