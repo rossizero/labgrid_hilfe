@@ -53,11 +53,11 @@ def handle_get(index):
     return gpio_line.get()
 
 def handle_record(index, duration: float, sampling_rate: int):
-    num_samples = sampling_rate * duration
+    num_samples = int(sampling_rate * duration)
     samples = []
 
     for i in range(num_samples):
-        samples.append(handle_get(index))
+        samples.append(int(handle_get(index)))
         time.sleep(1 / sampling_rate)
     return samples
     
