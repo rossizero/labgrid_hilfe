@@ -9,7 +9,8 @@ from ..exceptions import InvalidConfigError
 from ..factory import target_factory
 from ..protocol import VideoProtocol
 from .common import Driver
-
+import time
+import asyncio
 
 @target_factory.reg_driver
 @attr.s(eq=False)
@@ -139,15 +140,14 @@ class USBVideoDriver(Driver, VideoProtocol):
         if inner:
             pipeline += f"! {inner} "
 
-        pipeline += "! matroskamux streamable=true ! fdsink"
-        #pipeline += "! fdsink"
-        
+        pipeline += "! matroskamux streamable=true ! fdsink"        
         return pipeline
 
     @Driver.check_active
     def stream(self, caps_hint=None, controls=None):
         caps = self.select_caps(caps_hint)
         pipeline = self.get_pipeline(self.video.path, caps, controls)
+        
         tx_cmd = self.video.command_prefix + ["gst-launch-1.0", "-q"]
         tx_cmd += pipeline.split()
 
@@ -184,22 +184,22 @@ class USBVideoDriver(Driver, VideoProtocol):
         tx.communicate()
     
     @Driver.check_active
-    def get_opencv_cap(self, caps_hint=None, controls=None):
+    async def get_video_stream(self, caps_hint=None, controls=None):
         caps = self.select_caps(caps_hint)
         pipeline = self.get_pipeline(self.video.path, caps, controls)
         tx_cmd = self.video.command_prefix + ["gst-launch-1.0", "-q"]
         tx_cmd += pipeline.split()
 
         decode_cmd = [
-            "gst-launch-1.0",
+            "gst-launch-1.0", "-v",
             "fdsrc", "fd=0",
             "!", "matroskademux",
             "!", "jpegdec",
             "!", "videoconvert",
-            "!", "video/x-raw,format=BGR",
+            "!", "video/x-raw(ANY),format=BGRA",
             "!", "fdsink", "fd=1"
         ]
-        
+
         proc = subprocess.Popen(
             tx_cmd,
             stdin=subprocess.DEVNULL,
@@ -216,21 +216,23 @@ class USBVideoDriver(Driver, VideoProtocol):
 
         width=1280
         height=720
-        size = width * height * 3
+        channels=4
+        size = width * height * channels
 
-        while True:
-            chunk = decode.stdout.read(size)
-            if not chunk:
-                break
-            arr = np.frombuffer(chunk, dtype=np.uint8).reshape((height, width, 3))
+        try:
+            await asyncio.sleep(3) # TODO remove
+            while True:
+                chunk = decode.stdout.read(size)
+                if not chunk and len(chunk) != size:
+                    continue
+                arr = np.frombuffer(chunk, dtype=np.uint8).reshape((height, width, channels))
+                cv2.imshow("remote stream", arr)
+                if cv2.waitKey(1) & 0xFF == ord("q"):
+                    break
+        finally:
+            cv2.destroyAllWindows()
+            proc.terminate()
+            decode.terminate()
 
-            cv2.imshow("remote stream", arr)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-        cv2.destroyAllWindows()
-
-        proc.terminate()
-        decode.terminate()
-
-        proc.communicate()
-        decode.communicate()
+            proc.communicate()
+            decode.communicate()
