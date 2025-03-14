@@ -184,14 +184,14 @@ class USBVideoDriver(Driver, VideoProtocol):
         tx.communicate()
     
     @Driver.check_active
-    async def get_video_stream(self, caps_hint=None, controls=None):
+    def get_video_stream(self, caps_hint=None, controls=None):
         caps = self.select_caps(caps_hint)
         pipeline = self.get_pipeline(self.video.path, caps, controls)
         tx_cmd = self.video.command_prefix + ["gst-launch-1.0", "-q"]
         tx_cmd += pipeline.split()
 
         decode_cmd = [
-            "gst-launch-1.0", "-v",
+            "gst-launch-1.0", "-q",
             "fdsrc", "fd=0",
             "!", "matroskademux",
             "!", "jpegdec",
@@ -220,7 +220,6 @@ class USBVideoDriver(Driver, VideoProtocol):
         size = width * height * channels
 
         try:
-            await asyncio.sleep(3) # TODO remove
             while True:
                 chunk = decode.stdout.read(size)
                 if not chunk and len(chunk) != size:
