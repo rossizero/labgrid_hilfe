@@ -11,10 +11,11 @@ from ..protocol import VideoProtocol
 from .common import Driver
 import time
 import asyncio
+import io
 
 @target_factory.reg_driver
 @attr.s(eq=False)
-class USBVideoDriver(Driver, VideoProtocol):
+class USBVideoDriver(Driver, VideoProtocol, io.RawIOBase):
     bindings = {
         "video": {"USBVideo", "NetworkUSBVideo"},
     }
@@ -22,6 +23,18 @@ class USBVideoDriver(Driver, VideoProtocol):
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
         self._prepared = False
+
+        self.encoding_process = None
+        self.decoding_process = None
+
+        self._running = False
+
+        self.width = 1280  
+        self.height = 720
+        self.channels = 4
+    
+    def is_stream_open(self):
+        return self._running
 
     def get_qualities(self):
         match = (self.video.vendor_id, self.video.model_id)
@@ -184,7 +197,7 @@ class USBVideoDriver(Driver, VideoProtocol):
         tx.communicate()
     
     @Driver.check_active
-    def get_video_stream(self, caps_hint=None, controls=None):
+    def start_stream(self, caps_hint=None, controls=None):
         caps = self.select_caps(caps_hint)
         pipeline = self.get_pipeline(self.video.path, caps, controls)
         tx_cmd = self.video.command_prefix + ["gst-launch-1.0", "-q"]
@@ -199,39 +212,66 @@ class USBVideoDriver(Driver, VideoProtocol):
             "!", "video/x-raw(ANY),format=BGRA",
             "!", "fdsink", "fd=1"
         ]
+        
+        # if gstreamer opencv support
+        #set shell=True in subprocess
+        #decode_cmd = (
+        #    "gst-launch-1.0 -q "
+        #    "fdsrc fd=0 ! matroskademux ! jpegdec ! videoconvert ! video/x-raw,format=BGRA ! "
+        #    #"videotestsrc ! videoconvert ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 !"
+        #    "shmsink socket-path=/tmp/rosi-shm sync=false wait-for-connection=false"
+        #)
 
-        proc = subprocess.Popen(
+        self.encoding_process = subprocess.Popen(
             tx_cmd,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             bufsize=10**6
         )
 
-        decode = subprocess.Popen(
+        self.decoding_process = subprocess.Popen(
             decode_cmd,
-            stdin=proc.stdout,
+            stdin=self.encoding_process.stdout,
             stdout=subprocess.PIPE,
             bufsize=10**6
         )
 
-        width=1280
-        height=720
-        channels=4
-        size = width * height * channels
+        #size = self.width * self.height * self.channels
+        self._running = True
 
-        try:
-            while True:
-                chunk = decode.stdout.read(size)
-                if not chunk and len(chunk) != size:
-                    continue
-                arr = np.frombuffer(chunk, dtype=np.uint8).reshape((height, width, channels))
-                cv2.imshow("remote stream", arr)
-                if cv2.waitKey(1) & 0xFF == ord("q"):
-                    break
-        finally:
-            cv2.destroyAllWindows()
-            proc.terminate()
-            decode.terminate()
+        #try:
+        #    while True:
+        #        chunk = decode.stdout.read(size)
+        #        if not chunk and len(chunk) != size:
+        #            continue
+        #        arr = np.frombuffer(chunk, dtype=np.uint8).reshape((height, width, channels))
+        #        cv2.imshow("remote stream", arr)
+        #        if cv2.waitKey(1) & 0xFF == ord("q"):
+        #            break
+        #finally:
+        #    cv2.destroyAllWindows()
+        #    proc.terminate()
+        #    decode.terminate()
 
-            proc.communicate()
-            decode.communicate()
+        #    proc.communicate()
+        #    decode.communicate()
+
+    @Driver.check_active
+    def stop_stream(self):
+        self._running = False
+
+        self.encoding_process.terminate()
+        self.decoding_process.terminate()
+
+        self.encoding_process.communicate()
+        self.decoding_process.communicate()
+
+    @Driver.check_active
+    def read(self, size: int = 0) -> bytes:
+        """Reads 'size' bytes from the stream and returns as a byte buffer."""
+        if not size:
+            size = self.width * self.height * self.channels
+        chunk = self.decoding_process.stdout.read(size)
+        if chunk:
+            frame = np.frombuffer(chunk, dtype=np.uint8).reshape((self.height, self.width, self.channels))
+        return (True, frame) if chunk else (False, None)
