@@ -1,7 +1,7 @@
 devices:
   "046d:082d":
     format: "video/x-h264"
-    pipelines:
+    qualities:
       LOW: "width=640,height=360,framerate=5/1"
       MID: "width=1280,height=720,framerate=15/2"
       HIGH: "width=1920,height=1080,framerate=10/1"
@@ -10,7 +10,7 @@ devices:
 
   "046d:0892":
     format: "image/jpeg"
-    pipelines:
+    qualities:
       LOW: "width=640,height=360,framerate=5/1"
       MID: "width=1280,height=720,framerate=15/2"
       HIGH: "width=1920,height=1080,framerate=10/1"
@@ -19,7 +19,7 @@ devices:
   
   "046d:08e5": # Logitech HD Pro Webcam C920
     format: "image/jpeg"
-    pipelines:
+    qualities:
       LOW: "width=640,height=360,framerate=5/1"
       MID: "width=1280,height=720,framerate=15/2"
       HIGH: "width=1920,height=1080,framerate=10/1"
@@ -28,72 +28,81 @@ devices:
 
   "1224:2825":  # LogiLink UA0371
     format: "image/jpeg"
-    pipelines:
+    qualities:
       LOW: "width=640,height=480,framerate=30/1"
       MID: "width=1280,height=720,framerate=30/1"
       HIGH: "width=1920,height=1080,framerate=30/1"
+    controls: null
     inner: null
 
   "32a8:338b":  # whatever we bought
     format: "image/jpeg"
-    pipelines:
+    qualities:
       LOW: "width=640,height=480,framerate=30/1"
       MID: "width=1280,height=720,framerate=30/1"
       HIGH: "width=1920,height=1080,framerate=30/1"
+    controls: null
     inner: null
 
   "05a3:9331":  # WansView Webcam 102
     format: "video/x-h264"
-    pipelines:
+    qualities:
       LOW: "width=640,height=360,framerate=30/1"
       MID: "width=1280,height=720,framerate=30/1"
       HIGH: "width=1920,height=1080,framerate=30/1"
+    controls: null
     inner: "h264parse"
 
   "534d:2109":  # MacroSilicon
     format: "image/jpeg"
-    pipelines:
+    qualities:
       LOW: "width=640,height=480,framerate=10/1"
       MID: "width=1280,height=720,framerate=10/1"
       HIGH: "width=1920,height=1080,framerate=10/1"
+    controls: null
     inner: null
 
   "1d6c:0103":  # HD 2MP WEBCAM
     format: "video/x-h264"
-    pipelines:
+    qualities:
       LOW: "width=640,height=480,framerate=25/1"
       MID: "width=1280,height=720,framerate=25/1"
       HIGH: "width=1920,height=1080,framerate=25/1"
+    controls: "focus_auto=1"
     inner: "h264parse"
   
   "0c45:636b":  # LogiLink UA0379 / Microdia
     format: "image/jpeg"
-    pipelines:
+    qualities:
       LOW: "width=640,height=480,pixel-aspect-ratio=1/1,framerate=30/1"
       MID: "width=1280,height=720,pixel-aspect-ratio=1/1,framerate=30/1"
       HIGH: "width=1920,height=1080,pixel-aspect-ratio=1/1,framerate=30/1"
+    controls: "focus_auto=1"
     inner: null
   
   "0c45:636d":  # AUKEY PC-LM1E
     format: "image/jpeg"
-    pipelines:
+    qualities:
       LOW: "width=640,height=480,pixel-aspect-ratio=1/1,framerate=30/1"
       MID: "width=864,height=480,pixel-aspect-ratio=1/1,framerate=30/1"
       HIGH: "width=1280,height=1024,pixel-aspect-ratio=1/1,framerate=30/1"
+    controls: "focus_auto=1"
     inner: null
   
   "046d:0826": # Logitech C525
     format: "image/jpeg"
-    pipelines:
+    qualities:
       LOW: "width=640,height=480,framerate=30/1"
-      MID: "width=1280,height=720,,framerate=30/1"
+      MID: "width=1280,height=720,framerate=30/1"
       HIGH: "width=1920,height=1080,framerate=30/1"
+    controls: null
     inner: null
 
   "default":  # Fallback device
     format: "image/jpeg"
-    pipelines:
+    qualities:
       LOW: "width=640,height=480,framerate=30/1"
       MID: "width=1280,height=720,framerate=30/1"
       HIGH: "width=1920,height=1080,framerate=30/1"
+    controls: null
     inner: null
