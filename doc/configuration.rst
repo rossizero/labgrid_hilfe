@@ -2900,12 +2900,13 @@ Arguments:
 Although the driver can be used from Python code by calling the ``stream()``
 method, it is currently mainly useful for the ``video`` subcommand of
 ``labgrid-client``.
+There is now the possibility to start and stop the streaming to use the ``read()`` method 
+to obtain the current camera image as an array for further processing.
 It supports the `Logitech HD Pro Webcam C920` with the USB ID 046d:082d and a
 few others.
-More cameras can be added to ``get_qualities()`` and ``get_pipeline()`` in
-``labgrid/driver/usbvideodriver.py``.
+More cameras can be added to ``labgrid/driver/usbvideodevices.yaml``.
 Appropriate configuration parameters can be determined by using the GStreamer
-``gst-device-monitor-1.0`` command line utility.
+``gst-device-monitor-1.0`` command line utility or ``v4l2-ctl --list-formats-ext``.
 
 USBAudioInputDriver
 ~~~~~~~~~~~~~~~~~~~

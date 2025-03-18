@@ -1,7 +1,8 @@
+import re
 import subprocess
 import attr
 import numpy as np
-from enum import Enum
+from enum import StrEnum
 import yaml
 import os
 
@@ -10,13 +11,16 @@ from ..factory import target_factory
 from ..protocol import VideoProtocol
 from .common import Driver
 
-# TODO handle wrong enums
-class VideoQuality(Enum):
+
+class VideoQuality(StrEnum):
     LOW = "LOW"
     MID = "MID"
     HIGH = "HIGH"
-    
 
+    @classmethod
+    def from_string(cls, name: str, default=MID):
+        return next((s for s in cls if s.value.lower() == name.lower()), default)
+    
 @target_factory.reg_driver
 @attr.s(eq=False)
 class USBVideoDriver(Driver, VideoProtocol):
@@ -26,11 +30,7 @@ class USBVideoDriver(Driver, VideoProtocol):
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
-        config = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            "usbvideodevices.yaml"
-            )
-        self.device_configs = self._load_config(config)
+        self.device_configs = self._load_config()
 
         self._prepared = False
 
@@ -39,15 +39,18 @@ class USBVideoDriver(Driver, VideoProtocol):
 
         self._running = False
 
-        # TODO get width and height and channel info from config
-        self.width = 1920  
-        self.height = 1080
+        self.width = -1
+        self.height = -1
+
         self.channels = 4
     
-    def _load_config(self, config_path):
-        """Loads device configurations from a YAML file."""
+    def _load_config(self):
+        config = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            "usbvideodevices.yaml"
+            )
         try:
-            with open(config_path, "r") as file:
+            with open(config, "r") as file:
                 return yaml.safe_load(file)["devices"]
         except Exception as e:
             self.logger.error(f"Failed to load configuration: {e}")
@@ -59,16 +62,41 @@ class USBVideoDriver(Driver, VideoProtocol):
     def get_qualities(self):
         device_key = f"{self.video.vendor_id:04x}:{self.video.model_id:04x}"
         device_config = self.device_configs.get(device_key, self.device_configs.get("default"))
-        qualities = {}
+        qualities = []
         for q, cfg in device_config["qualities"].items():
-            qualities[VideoQuality[q.upper()]] = f"{device_config['format']},{cfg}"
-        return qualities
+            qualities.append((VideoQuality[q].value, f"{device_config['format']},{cfg}"))
+        return ("MID", qualities)  # expected to be that way in remote/client
+    
+    def _select_caps(self, hint:VideoQuality=None):
+        default, variants = self.get_qualities()
+        variant = hint.value if hint else default
+        for name, caps in variants:
+            if name == variant:
+                w, h = self._extract_camera_params(caps)
+                if w is None or h is None:
+                    break
+                else:
+                    self.width = w
+                    self.height = h
+                    return caps
+        raise InvalidConfigError(
+            f"Unknown video format {variant} for device {self.video.vendor_id:04x}:{self.video.model_id:04x}"  # pylint: disable=line-too-long
+        )
 
-    def get_pipeline(self, quality:VideoQuality=VideoQuality.MID, controls:str=None):
+    def _extract_camera_params(self, caps):
+        width_match = re.search(r'width=(\d+)', caps)
+        height_match = re.search(r'height=(\d+)', caps)
+
+        width = int(width_match.group(1)) if width_match else None
+        height = int(height_match.group(1)) if height_match else None
+
+        return width, height
+    
+    def _get_pipeline(self, quality:VideoQuality=VideoQuality.MID, controls:str=None):
         device_key = f"{self.video.vendor_id:04x}:{self.video.model_id:04x}"
         device_config =  self.device_configs.get(device_key)
 
-        caps = self.get_qualities().get(quality)
+        caps = self._select_caps(quality)
         controls = controls or device_config.get("controls")
         inner = device_config.get("inner")
 
@@ -85,7 +113,7 @@ class USBVideoDriver(Driver, VideoProtocol):
 
     @Driver.check_active
     def stream(self, caps_hint:str="low", controls=None):
-        pipeline = self.get_pipeline(VideoQuality[caps_hint.upper()], controls)
+        pipeline = self._get_pipeline(VideoQuality.from_string(caps_hint), controls)
         
         tx_cmd = self.video.command_prefix + ["gst-launch-1.0", "-q"]
         tx_cmd += pipeline.split()
@@ -124,7 +152,7 @@ class USBVideoDriver(Driver, VideoProtocol):
     
     @Driver.check_active
     def start_stream(self, caps_hint:str="mid", controls=None):
-        pipeline = self.get_pipeline(VideoQuality[caps_hint.upper()], controls)
+        pipeline = self._get_pipeline(VideoQuality.from_string(caps_hint), controls)
         tx_cmd = self.video.command_prefix + ["gst-launch-1.0", "-q"]
         tx_cmd += pipeline.split()
 
@@ -134,22 +162,20 @@ class USBVideoDriver(Driver, VideoProtocol):
             "!", "matroskademux",
             "!", "jpegdec",
             "!", "videoconvert",
-            "!", "video/x-raw(ANY),format=BGRA",
+            "!", "video/x-raw(ANY),format=BGRA", # this took me hours..
             "!", "fdsink", "fd=1"
         ]
 
         self.encoding_process = subprocess.Popen(
             tx_cmd,
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            bufsize=10**6
+            stdout=subprocess.PIPE
         )
 
         self.decoding_process = subprocess.Popen(
             decode_cmd,
             stdin=self.encoding_process.stdout,
-            stdout=subprocess.PIPE,
-            bufsize=10**6
+            stdout=subprocess.PIPE
         )
 
         self._running = True
@@ -170,4 +196,4 @@ class USBVideoDriver(Driver, VideoProtocol):
         chunk = self.decoding_process.stdout.read(size)
         if chunk:
             frame = np.frombuffer(chunk, dtype=np.uint8).reshape((self.height, self.width, self.channels))
-        return (True, frame) if chunk else (False, None)
+        return (True, frame) if chunk else (False, None)  # mimic opencv videocapture
