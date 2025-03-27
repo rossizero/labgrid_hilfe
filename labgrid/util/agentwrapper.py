@@ -9,7 +9,7 @@ import logging
 from .ssh import get_ssh_connect_timeout
 from getpass import getuser
 
-def getuser():
+def get_user():
     return os.environ.get("LG_USERNAME", getuser())
 
 def b2s(b):
@@ -51,7 +51,7 @@ class AgentWrapper:
             os.path.abspath(os.path.dirname(__file__)),
             'agent.py')
         if host:
-            user = getuser()
+            user = get_user()
             # copy agent.py and run via ssh
             with open(agent, 'rb') as agent_fd:
                 agent_data = agent_fd.read()
