@@ -9,7 +9,7 @@ import logging
 from .ssh import get_ssh_connect_timeout
 from getpass import getuser
 
-def getuser(self):
+def getuser():
     return os.environ.get("LG_USERNAME", getuser())
 
 def b2s(b):
