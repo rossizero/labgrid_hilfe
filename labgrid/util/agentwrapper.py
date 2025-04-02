@@ -64,7 +64,7 @@ class AgentWrapper:
                  f'{user}@{host}:{agent_remote}'],
             )
             self.agent = subprocess.Popen(
-                ssh_opts + [host, '--', 'python3', agent_remote],
+                ssh_opts + [f'{user}@{host}', '--', 'python3', agent_remote],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 start_new_session=True,
