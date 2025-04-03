@@ -21,9 +21,7 @@ class GpioDigitalOutput:
             "/dev/gpiochip0",
             consumer="blink-example",
             config={
-                self.index: gpiod.LineSettings(
-                    direction=Direction.OUTPUT, output_value=Value.ACTIVE  # ?
-                )
+                self.index: None
             },
         )
 
@@ -40,17 +38,13 @@ class GpioDigitalOutput:
         self._request.set_value(self.index, Value.ACTIVE if status else Value.INACTIVE)
 
     def change_direction(self, direction):
-        self._request.release()
-        self._request = gpiod.request_lines(
-            "/dev/gpiochip0",
-            consumer="blink-example",
+        self._request.reconfigure_lines(
             config={
                 self.index: gpiod.LineSettings(
                     direction=direction
                 )
-            },
+            }
         )
-
 
 _gpios = {}
 
