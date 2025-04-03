@@ -24,6 +24,7 @@ class GpioDigitalOutput:
                 self.index: None
             },
         )
+        self.direction = None
 
     def __del__(self):
         self._request.release()
@@ -38,13 +39,15 @@ class GpioDigitalOutput:
         self._request.set_value(self.index, Value.ACTIVE if status else Value.INACTIVE)
 
     def change_direction(self, direction):
-        self._request.reconfigure_lines(
-            config={
-                self.index: gpiod.LineSettings(
-                    direction=direction
-                )
-            }
-        )
+        if self.direction != direction:
+            self.direction = direction
+            self._request.reconfigure_lines(
+                config={
+                    self.index: gpiod.LineSettings(
+                        direction=direction
+                    )
+                }
+            )
 
 _gpios = {}
 
