@@ -27,6 +27,7 @@ class GpioDigitalOutput:
         self.direction = None
 
     def __del__(self):
+        print("released gpio line", self.index)
         self._request.release()
 
     def get(self):
@@ -54,6 +55,9 @@ _gpios = {}
 def _get_gpio_line(index):
     if index not in _gpios:
         _gpios[index] = GpioDigitalOutput(index=index)
+        print("made new gpio", index)
+    else:
+        print("found gpio", index)
     return _gpios[index]
 
 def handle_set(index, status):
@@ -69,8 +73,10 @@ def handle_record(index, duration: float, sampling_rate: int):
     samples = []
 
     for i in range(num_samples):
-        samples.append(int(handle_get(index)))
+        val = int(handle_get(index))
+        samples.append(val)
         time.sleep(1 / sampling_rate)
+    del _gpios[index]  # this is necessary if different tests uses record and get right after each other
     return samples
     
 methods = {
