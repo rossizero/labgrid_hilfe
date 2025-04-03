@@ -27,7 +27,7 @@ class GpioDigitalOutput:
         self.direction = None
 
     def __del__(self):
-        print("released gpio line", self.index)
+        self._logger.debug("released gpio line", self.index)
         self._request.release()
 
     def get(self):
@@ -55,9 +55,6 @@ _gpios = {}
 def _get_gpio_line(index):
     if index not in _gpios:
         _gpios[index] = GpioDigitalOutput(index=index)
-        print("made new gpio", index)
-    else:
-        print("found gpio", index)
     return _gpios[index]
 
 def handle_set(index, status):
