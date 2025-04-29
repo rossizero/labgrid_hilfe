@@ -45,7 +45,6 @@ class GpioDigitalOutputDriver(Driver, DigitalOutputProtocol):
         self.proxy.set(self.gpio.index, status)
 
     @Driver.check_active
-    @step(result=True)
     def get(self):
         return self.proxy.get(self.gpio.index)
 
